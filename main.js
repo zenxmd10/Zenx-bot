@@ -2,17 +2,18 @@ const {
     default: makeWASocket, 
     useMultiFileAuthState, 
     DisconnectReason, 
-    delay 
+    delay,
+    fetchLatestBaileysVersion 
 } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const path = require('path');
 const pino = require('pino');
 
-// --- SETTINGS ---
+// --- SETTINGS (Directly Edit Here) ---
 global.BOT_NAME = 'ZENX-V1';
 global.PREFIX = '.'; 
-const PAIRING_NUMBER = '916235508514'; // Ivide ningalude number (with country code)
-const SUDO = ['916235141427']; // Ivide admin number
+const PAIRING_NUMBER = '916235508514'; // Your Bot Number
+const SUDO = ['916235141427']; // Your Personal Number
 const MODE = 'public'; 
 
 global.commands = []; 
@@ -21,14 +22,18 @@ global.Module = (info, func) => {
 };
 
 async function startBot() {
+    const { version } = await fetchLatestBaileysVersion();
     const { state, saveCreds } = await useMultiFileAuthState('auth_session');
+
     const sock = makeWASocket({
+        version,
         auth: state,
         printQRInTerminal: false,
         logger: pino({ level: 'silent' }),
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
+    // PAIRING CODE LOGIC
     if (!sock.authState.creds.registered) {
         let phoneNumber = PAIRING_NUMBER.replace(/[^0-9]/g, '');
         await delay(5000);
@@ -39,16 +44,16 @@ async function startBot() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'open') {
-            console.log(`✅ ${global.BOT_NAME} Online!`);
+            console.log(`✅ ${global.BOT_NAME} Connected!`);
             for (const num of SUDO) {
-                await sock.sendMessage(num + '@s.whatsapp.net', { text: `*BOT_START* 🚀` });
+                await sock.sendMessage(num + '@s.whatsapp.net', { text: `*BOT_START* 🚀\n\nPrefix: ${global.PREFIX}\nMode: ${MODE}` });
             }
         } else if (connection === 'close') {
             if (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut) startBot();
         }
     });
 
-    // Plugin Loader
+    // Load Plugins
     const pluginsPath = path.join(__dirname, 'plugins');
     if (!fs.existsSync(pluginsPath)) fs.mkdirSync(pluginsPath);
     fs.readdirSync(pluginsPath).forEach(file => {
@@ -84,4 +89,3 @@ async function startBot() {
     });
 }
 startBot();
-
